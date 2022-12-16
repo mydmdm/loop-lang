@@ -25,7 +25,7 @@ object : NAME
 
 from .ply.lex import lex
 from .ply.yacc import yacc
-from anytree import AnyNode, NodeMixin, RenderTree
+# from anytree import AnyNode, NodeMixin, RenderTree
 from typing import Optional, Iterable, Tuple
 
 # --- Tokenizer
@@ -136,7 +136,7 @@ def p_object_name(p):
     '''
     object : NAME
     '''
-    p[0] = ('name', p[1])
+    p[0] = ('identifier', p[1])
 
 def p_object_index(p):
     '''
@@ -151,34 +151,16 @@ def p_error(p):
 parser = yacc()
 
 
-def astree(code: str):
-    """Parse code and return the AST."""
-    def _to_node(gram: Tuple, parent: Optional[AnyNode] = None, children: Optional[Iterable[AnyNode]] = None, **kwargs):
-        category = gram[0]
-        if category in ['binop', 'unary']:
-            node = AnyNode(category=category, opeartor=gram[1], parent=parent, children=[_to_node(x) for x in gram[2:]])
-        elif category == 'index':
-            node = AnyNode(category=category, name=gram[1], parent=parent, children=[_to_node(gram[2])])
-        elif category in ['number', 'name']:
-            node = AnyNode(category=category, value=gram[1], parent=parent)
-        elif category == 'grouped':
-            node = AnyNode(category=category, parent=parent, children=[_to_node(gram[1])])
-        else:
-            return AnyNode(category=category, flag='NotImplemented')
-            raise ValueError(f'Unknown category {category!r}')
-        return node
-    gram = parser.parse(code)
-    nodes = _to_node(gram)
-    return gram, nodes
+
 
 # Parse an expression
-if __name__=='__main__':
-    for code in [
-        'a = 1 + 2 * (4+x)',
-        'a[i,j] += a[i-1,j] + 1',
-        'A[i] = B[i]',
-        'C[m,n] += A[m,k] * B[k,n]',
-    ]:
-        g, n = astree(code)
-        print(code)
-        print(RenderTree(n))
+# if __name__=='__main__':
+#     for code in [
+#         'a = 1 + 2 * (4+x)',
+#         'a[i,j] += a[i-1,j] + 1',
+#         'A[i] = B[i]',
+#         'C[m,n] += A[m,k] * B[k,n]',
+#     ]:
+#         g, n = astree(code)
+#         print(code)
+#         print(RenderTree(n))

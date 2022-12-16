@@ -1,16 +1,24 @@
-from loo.abs import set_context, Variable, Statement
+from loo.abs import Expression, Variable, logger, Scope, Loop
 from loo.variables import *
 from anytree import RenderTree
+
+logging.basicConfig(level=logging.DEBUG)
 
 ################################################################
 # tests and examples
 ################################################################
 
-ctx = set_context()
+ctx = Scope()
 
-A = Variable('A', 'int')
-B = Variable('B', 'int')
+ctx([Variable(i, 'int') for i in ('M', 'N', 'K')])
 
-Statement('A[i] = B[i]')
+i = Loop('i', ['M'])
+j = Loop('j', ['M'])
+k = Loop('k', ['M'])
 
-print(RenderTree(ctx.statements[0].ast))
+ctx(i)
+i.body(j)
+j.body(k)
+k.body('C[i,j] += A[i,k] * B[k,j]')
+
+print(RenderTree(ctx.to_anytree()))
