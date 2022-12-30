@@ -17,6 +17,8 @@ i = Loop('i', ['M'])
 j = Loop('j', ['N'])
 k = Loop('k', ['K'])
 
+print(i.is_normalized)
+
 ctx(i)
 i.body(j)
 j.body(k)

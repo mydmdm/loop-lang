@@ -117,7 +117,7 @@ def p_term_number(p):
     '''
     term : NUMBER
     '''
-    p[0] = ('number', p[1])
+    p[0] = ('number', str(p[1]))
 
 def p_term_unary(p):
     '''

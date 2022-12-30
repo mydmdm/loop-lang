@@ -2,35 +2,36 @@ from loo.abs import *
 
 
 class Loop(Expression):
-    """ [category, name, start, stop, step, <body>]
+    """ [category, name, start, stop, step, body]
     children:
         [start, stop, step, body]
     """
-    categories = {'loop': 5}
+    categories = {'loop': 6}
     attributes = {'name': 1}
 
     def __init__(self, name:str, dim: List[Union[int, str]]) -> None:
-        tokens = tuple(['loop', name] + self.parse_range(dim))
+        tokens = tuple(['loop', name] + self.parse_range(dim) + [Scope()]) # type: ignore
         super().__init__(tokens)
-        # self.name = name
-        # self.children = [Expression.parse(d) for d in self.parse_range(dim)]
-        self.children.append(Scope())
 
     @property
     def body(self) -> Scope:
-        return self.children[3]
+        return self.children[3] #type: ignore
 
     @property
-    def lowerb(self) -> Scope:
+    def lowerb(self) -> AstNode:
         return self.children[0]
 
     @property
-    def upperb(self) -> Scope:
+    def upperb(self) -> AstNode:
         return self.children[1]
 
     @property
-    def step(self) -> Scope:
+    def step(self) -> AstNode:
         return self.children[2]
+
+    @property
+    def is_normalized(self) -> bool:
+        return self.lowerb == ('number', 0) and self.step == ('number', 1)
 
     @staticmethod
     def parse_range(args):
@@ -43,8 +44,17 @@ class Loop(Expression):
         else:
             raise ValueError('Dimension must have 1, 2 or 3 arguments', args)
 
-    def split(self, interval: Union[int,str], out_order: str=None):
-        pass
+    def split(self, intervals: List):
+        new_dims = []
+        for i,s in enumerate(intervals):
+            if i==0:
+                ax = Loop(f'{self.name}{i}', [self.lowerb, self.upperb, s])
+            else:
+                ax = Loop(f'{self.name}{i}', [0, intervals[i-1], s])
+            new_dims.append(ax)
+        ax = Loop(f'{self.name}{len(intervals)}', [0, intervals[-1], 1])
+        new_dims.append(ax)
+        return new_dims
 
     def as_str(self, level:int) -> str:
         s = f'for(auto {self.name}={self.lowerb}; {self.name}<{self.upperb}; {self.name} += {self.step})'

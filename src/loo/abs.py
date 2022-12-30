@@ -13,21 +13,22 @@ import logging
 logger = logging.getLogger('loo')
 
 
-class _AstNode(abc.ABC):
+class AstNode(abc.ABC):
 
     def __init__(self) -> None:
         super().__init__()
         self.parent = None 
-        self.children = [] # type: List[_AstNode] 
+        self.children = [] # type: List[AstNode] 
 
-    def add_children(self, nodes):
-        if isinstance(nodes, _AstNode): # not list
-            nodes = [nodes]
-        self.children.extend(nodes)
-        for n in nodes:
-            n.set_parent(self)
+    def add_child(self, node: AstNode):
+        self.children.append(node)
+        node.set_parent(self)
 
-    def set_parent(self, node: _AstNode):
+    def add_children(self, nodes: Iterable[AstNode]):
+        for node in nodes:
+            self.add_child(node)
+
+    def set_parent(self, node: AstNode):
         self.parent = node
 
     @staticmethod
@@ -47,7 +48,7 @@ class _AstNode(abc.ABC):
         return AnyNode(**dic, children=[n.to_anytree() for n in self.children])
 
 
-class Variable(_AstNode):
+class Variable(AstNode):
     
     def __init__(self, name: str, _type: Optional[str]='int', tags: Optional[List[str]] = None, qualifiers: Optional[List[str]]=None) -> None:
         """ some special tags:
@@ -62,13 +63,13 @@ class Variable(_AstNode):
         self.qualifiers = qualifiers or []
         
 
-class Expression(_AstNode):
+class Expression(AstNode):
     categories = {} # type: Dict[str,int] 
                     # allowed category values
     attributes = {} # type: Dict[str,int]
                     # attributes and corresponding tokens index
 
-    def __init__(self, tokens: Tuple) -> None:
+    def __init__(self, tokens: Tuple, child_parsed: bool = False) -> None:
         super().__init__()
         assert tokens[0] in self.categories, f'not allowed {category!r}'
         self.category = tokens[0]
@@ -82,7 +83,12 @@ class Expression(_AstNode):
         for k,i in self.attributes.items():
             setattr(self, k, tokens[i])
         k = 1 + len(self.attributes)
-        self.add_children([Expression.parse(x) for x in tokens[k:]])
+        for t in tokens[k:]:
+            if isinstance(t, AstNode):
+                self.add_child(t)
+            else:
+                # parse to AstNode first
+                self.add_child(Expression.parse(t))
 
     @staticmethod
     def parse(input: Union[int, str, Tuple], expr_types: List[Type(Expression)] = None) -> Expression:
@@ -130,20 +136,26 @@ class ElementoryExpression(Expression):
     def __str__(self) -> str:
         return str(self.value)
 
+    def __eq__(self, tokens: Tuple) -> bool:
+        return self.category == tokens[0] and self.value == str(tokens[1])
+
 
 __builtin_expression_types__ = [OperatorExpression, MemAccessExpression, ElementoryExpression]
 
 
-class Scope(_AstNode):
+class Scope(AstNode):
     
     def __init__(self) -> None:
         super().__init__()
 
     def __call__(self, arg) -> Any:
-        if isinstance(arg, (Variable, Expression, List, Tuple)):
-            self.add_children(arg)
+        if isinstance(arg, (Variable, Expression)):
+            self.add_child(arg)
         elif isinstance(arg, str): # expression
-            self.add_children(Expression.parse(arg))
+            self.add_child(Expression.parse(arg))
+        elif isinstance(arg, list): # list of above
+            for a in arg:
+                self.__call__(a)
         else:
             raise ValueError(f'unkown type {arg!r}')
 
